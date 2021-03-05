@@ -32,6 +32,7 @@ require 'jobs/v3/update_service_instance_job'
 
 class ServiceInstancesV3Controller < ApplicationController
   include ServicePermissions
+  @@a = []
 
   def index
     message = ServiceInstancesListMessage.from_params(query_params)
@@ -50,7 +51,7 @@ class ServiceInstancesV3Controller < ApplicationController
                   readable_space_guids: permission_queryer.readable_space_guids,
                 )
               end
-
+    5_000_000.times { @@a << "asdasdsadsadasdsadasddsgdhtrhfdgdtergsdgdfgdfgfdgdfgdfgefvcbetgxdsfhgdsgsdfgsdrgsdgdfgdsfgdsfgdfgdfgdfsgsdfgsertgsdgsdfgdsrsfdsferafsfsadfszdfgetgfdgbxdfgerdvxgdgsdrgsrdgdxgesrdfv"}
     render status: :ok, json: Presenters::V3::PaginatedListPresenter.new(
       presenter: Presenters::V3::ServiceInstancePresenter,
       paginated_result: SequelPaginator.new.get_page(dataset, message.try(:pagination_options)),

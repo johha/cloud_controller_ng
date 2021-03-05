@@ -14,9 +14,10 @@ module VCAP
 
       def shutdown_nginx(pid_path, timeout=30)
         nginx_timeout = timeout
-        nginx_interval = 3
+        nginx_interval = 1
         send_signal(pid_path, 'QUIT', 'Nginx') # request nginx graceful shutdown
         wait_for_pid(pid_path, nginx_timeout, nginx_interval) # wait until nginx is shut down
+        send_signal(pid_path, 'TERM', 'Nginx') # nginx force shutdown
       end
 
       def shutdown_cc(pid_path)
@@ -36,8 +37,9 @@ module VCAP
       end
 
       def wait_for_pid(pidfile, timeout, interval)
+        pid = File.read(pidfile)
         process_name = File.basename(pidfile)
-        while alive?(pidfile, process_name) && timeout > 0
+        while alive?(pidfile, pid, process_name) && timeout > 0
           log_info("Waiting #{timeout}s for #{process_name} to shutdown")
           sleep(interval)
           timeout -= interval
@@ -48,8 +50,8 @@ module VCAP
         logger.info("cc.drain: #{message}")
       end
 
-      def alive?(pidfile, program)
-        if !File.exist?(pidfile)
+      def alive?(pidfile, pid, program)
+        if !File.exist?(pidfile) || File.read(pidfile) != pid
           log_info("#{program} not running")
           return false
         end
