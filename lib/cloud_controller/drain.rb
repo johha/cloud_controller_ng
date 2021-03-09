@@ -51,11 +51,13 @@ module VCAP
       end
 
       def alive?(pidfile, pid, program)
-        if !File.exist?(pidfile) || File.read(pidfile) != pid
-          log_info("#{program} not running")
+        begin
+          Process.getpgid(pid)
+          return true
+        rescue Errno::ESRCH
+          log_info("#{program} not running (pid did not equal expected pid '#{pid}')")
           return false
         end
-        true
       end
 
       def logger
