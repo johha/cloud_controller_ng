@@ -15,19 +15,23 @@ module VCAP
       def shutdown_nginx(pid_path, timeout=30)
         nginx_timeout = timeout
         nginx_interval = 1
-        send_signal(pid_path, 'QUIT', 'Nginx') # request nginx graceful shutdown
-        wait_for_pid(pid_path, nginx_timeout, nginx_interval) # wait until nginx is shut down
-        send_signal(pid_path, 'TERM', 'Nginx') # nginx force shutdown
+        pid = File.read(pid_path).to_i
+        process_name = File.basename(pid_path)
+        send_signal(pid, 'QUIT', 'Nginx') # request nginx graceful shutdown
+        wait_for_pid(pid, process_name, nginx_timeout, nginx_interval) # wait until nginx is shut down
+        if alive?(pid, process_name)
+          send_signal(pid, 'TERM', 'Nginx') # nginx force shutdown
+        end
       end
 
       def shutdown_cc(pid_path)
-        send_signal(pid_path, 'TERM', 'cc_ng')
+        pid = File.read(pid_path).to_i
+        send_signal(pid, 'TERM', 'cc_ng')
       end
 
       private
 
-      def send_signal(pidfile, signal, program)
-        pid = File.read(pidfile).to_i
+      def send_signal(pid, signal, program)
         log_info("Sending signal #{signal} to #{program} with pid #{pid}.")
         Process.kill(signal, pid)
       rescue Errno::ESRCH => e
@@ -36,10 +40,8 @@ module VCAP
         log_info("#{program} not running: Pid file no longer exists: #{e}")
       end
 
-      def wait_for_pid(pidfile, timeout, interval)
-        pid = File.read(pidfile)
-        process_name = File.basename(pidfile)
-        while alive?(pidfile, pid, process_name) && timeout > 0
+      def wait_for_pid(pid, process_name, timeout, interval)
+        while alive?(pid, process_name) && timeout > 0
           log_info("Waiting #{timeout}s for #{process_name} to shutdown")
           sleep(interval)
           timeout -= interval
@@ -50,14 +52,13 @@ module VCAP
         logger.info("cc.drain: #{message}")
       end
 
-      def alive?(pidfile, pid, program)
-        begin
-          Process.getpgid(pid)
-          return true
-        rescue Errno::ESRCH
-          log_info("#{program} not running (pid did not equal expected pid '#{pid}')")
-          return false
-        end
+      def alive?(pid, process_name)
+        Process.getpgid(pid)
+        log_info("#{process_name} with pid '#{pid}' is running")
+        true
+      rescue Errno::ESRCH
+        log_info("#{process_name} with pid '#{pid}' not running")
+        false
       end
 
       def logger
